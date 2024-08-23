@@ -1,16 +1,32 @@
-body {
+/* Reset básico */
+* {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+}
+
+body {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 600px;
-
+  height: 100vh;
+  background-color: #f0f0f0; /* Cor de fundo suave */
+  font-family: 'Powerpuff', sans-serif;
 }
 
 @font-face {
   font-family: 'Powerpuff';
-  src: url('fontes/powerpuff.ttf') format('truetype');
+  src: url('../fonts/powerpuff.ttf') format('truetype');
 }
 
+#gameContainer {
+  width: 100%;
+  max-width: 800px;
+  aspect-ratio: 16 / 9; /* Mantém proporção do canvas */
+  position: relative;
+}
 
+#gameCanvas {
+  width: 100%;
+  height: 100%;
+}
