@@ -1,259 +1,364 @@
 // Função para carregar uma imagem e retornar uma Promise
-export function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image(); // Cria um novo objeto Image
-    img.onload = () => resolve(img); // Resolve a Promise com a imagem carregada
-    img.onerror = () => reject(new Error(`Falha ao carregar a imagem: ${src}`)); // Rejeita a Promise em caso de erro
-    img.src = src; // Define a URL da imagem
-  });
-}
+const loadImage = async (url) => 
+  new Promise((resolve, reject) => {
+  const img = new Image();
+  img.addEventListener("load", () => resolve(img));  // Quando a imagem é carregada, a promessa é resolvida com a imagem
+  img.addEventListener("error", () => reject(new Error(`Falha ao carregar a imagem: ${url}`)));  // Se ocorrer um erro ao carregar a imagem, a promessa é rejeitada
+  img.src = url;  // Define o caminho da imagem
+  console.log('loading img: ' + url);  // Log para saber qual imagem está sendo carregada
+});
 
-// Função para carregar uma fonte e retornar uma Promise
-export function loadFont(name, url) {
-  return new FontFace(name, `url(${url})`).load(); // Cria um FontFace e carrega a fonte
-}
+// Variáveis globais
+let CTX, CANVAS;  // Variáveis que armazenarão o contexto e o canvas
+const FRAMES = 30;  // Taxa de quadros por segundo (FPS) do jogo
+let playerImage, bgImage, bgPattern;  // Variáveis para armazenar as imagens e o padrão de fundo
+let totalSpritesX = 9;  // Número de sprites na horizontal (usado para animação)
+let totalSpritesY = 1;  // Número de sprites na vertical (usado para animação)
+let cellWidth, cellHeight;  // Largura e altura de cada sprite na imagem
+let score = 0;  // Pontuação inicial do jogador
+let gameover = false;  // Estado do jogo (se está em game over ou não)
+let gameOverSound;
+let themeMusic;
 
-// Classe que representa o jogador
-export class Player {
-  constructor(x, y, width, height, image, totalFramesX) {
-    this.x = x; // Posição x do jogador
-    this.y = y; // Posição y do jogador
-    this.width = width; // Largura do jogador
-    this.height = height; // Altura do jogador
-    this.image = image; // Imagem do jogador
-    this.speed = 5; // Velocidade de movimento do jogador
-    this.frameX = 0; // Coordenada x do quadro atual da animação
-    this.frameY = 0; // Coordenada y do quadro atual da animação
-    this.frameCount = totalFramesX; // total de quadros na linah de sprites
-    this.framTimer = 0; // Temporizador para controlar a troca de quadros
-    this.frameSpeed = 10; // Velocidade de troca de quadros (menor = mais rápido)
-    this.keys = {}; // Objeto para armazenar as teclas pressionadas
+// Classe Player
+
+class Player {
+  constructor(x, y, width, height) {
+      this.x = x;
+      this.y = y;
+      this.width = width;
+      this.height = height;
+      this.speed = 10;
+      this.frameX = 0;
+      this.keys = {};
   }
 
- // Método para desenhar o jogador no canvas
- draw(ctx) {
-  ctx.drawImage(
-    this.image,
-    this.frameX * this.width, // Coordenada x do quadro atual
-    this.frameY * this.height, // Coordenada y do quadro atual
-    this.width,
-    this.height,
-    this.x,
-    this.y,
-    this.width,
-    this.height
-  );
-}
-
- // Método para atualizar a posição do jogador com base nas teclas pressionadas
- update() {
-  this.updateAnimation();
-
-  if (this.keys['ArrowUp']) this.y -= this.speed; // Move para cima
-  if (this.keys['ArrowDown']) this.y += this.speed; // Move para baixo
-  if (this.keys['ArrowLeft']) this.x -= this.speed; // Move para a esquerda
-  if (this.keys['ArrowRight']) this.x += this.speed; // Move para a direita
-}
-
-
-// Método para atualizar a animação do jogador
-updateAnimation() {
-  this.frameTimer++;
-  if (this.frameTimer >= this.frameSpeed) {
-    this.frameX = (this.frameX + 1) % this.frameCount; // Avança para o próximo quadro
-    this.frameTimer = 0; // Reseta o temporizador
-  }
-}
-
-  // Método para lidar com a entrada do teclado
-  handleInput() {
-    window.addEventListener('keydown', (e) => {
-      this.keys[e.key] = true; // Marca a tecla como pressionada
-    });
-
-    window.addEventListener('keyup', (e) => {
-      this.keys[e.key] = false; // Marca a tecla como não pressionada
-    });
-  }
-}
-
-// Classe que representa o pirulito
-export class Candy {
-  constructor(x, y, radius, color = 'pink') {
-    this.x = x; // Posição x do pirulito
-    this.y = y; // Posição y do pirulito
-    this.radius = radius; // Raio do pirulito
-    this.color = color; // Cor do pirulito
-  }
-
-// Método para desenhar o pirulito no canvas
-draw(ctx) {
-  ctx.beginPath();
-  ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); // Desenha um círculo
-  ctx.fillStyle = this.color; // Define a cor do círculo
-  ctx.fill(); // Preenche o círculo com a cor
-  ctx.closePath();
-}
-
-  // Método para definir uma posição aleatória para o pirulito dentro dos limites fornecidos
-  randomPosition(boundary) {
-    this.x = boundary.x + Math.random() * (boundary.width - this.radius * 2) + this.radius;
-    this.y = boundary.y + Math.random() * (boundary.height - this.radius * 2) + this.radius;
-  }
-}
-
-// Classe que representa o jogo
-export class Game {
-  constructor(canvas, context) {
-    this.canvas = canvas; // Elemento canvas onde o jogo será desenhado
-    this.ctx = context; // Contexto de renderização do canvas
-    this.width = canvas.width; // Largura do canvas
-    this.height = canvas.height; // Altura do canvas
-    this.background = null; // Imagem de fundo do jogo
-    this.player = null; // Instância do jogador
-    this.candy = null; // Instância do pirulito
-    this.score = 0; // Pontuação do jogo
-    this.collisionSound = new Audio('sounds/captura.mp3'); // Som de colisão
-    this.gameArea = {
-      x: this.width * 0.1, // Posição x da área de jogo
-      y: this.height * 0.1, // Posição y da área de jogo
-      width: this.width * 0.8, // Largura da área de jogo
-      height: this.height * 0.8, // Altura da área de jogo
-    };
-  }
-
-  // Método para inicializar o jogo
-  async init() {
-    await loadFont('Powerpuff', '../fonts/powerpuff.ttf'); // Carrega a fonte
-    this.background = await loadImage('img/fundo.jpg'); // Carrega a imagem de fundo
-    const playerImage = await loadImage('img/lindinha.png'); // Carrega a imagem do jogador
-    
-    // Inicializa o jogador
-
-    this.player = new Player(
-      this.gameArea.x + this.gameArea.width / 2,
-      this.gameArea.y + this.gameArea.height / 2,
-      60,
-      69,
-      playerImage,
-      9 // Número total de quadros horizontais na imagem da Lindinha
-    );
-
-    this.player.handleInput(); // Adiciona o controle de entrada do teclado
-
-    this.candy = new Candy(0, 0, 15); // Inicializa o pirulito
-    this.candy.randomPosition(this.gameArea); // Define uma posição aleatória para o pirulito
-
-    this.loop(); // Inicia o loop do jogo
-  }
-
-  
-  // Método para o loop principal do jogo
-  loop() {
-    this.update(); // Atualiza o estado do jogo
-    this.draw(); // Desenha o estado atual do jogo
-    requestAnimationFrame(() => this.loop()); // Solicita o próximo quadro
-  }
-
-  // Método para atualizar o estado do jogo
-  update() {
-    this.player.update(); // Atualiza a posição do jogador
-    this.checkCollisions(); // Verifica colisões entre o jogador e o pirulito
-    this.handleBounds(); // Garante que o jogador não saia da área de jogo
-  }
-
-    // Método para desenhar o estado atual do jogo no canvas
-    draw() {
-      this.ctx.clearRect(0, 0, this.width, this.height); // Limpa o canvas
-      this.ctx.drawImage(this.background, 0, 0, this.width, this.height); // Desenha a imagem de fundo
-  
-      // Desenha a área de jogo com um fundo semitransparente
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      this.ctx.fillRect(
-        this.gameArea.x,
-        this.gameArea.y,
-        this.gameArea.width,
-        this.gameArea.height
+  draw() {
+      CTX.drawImage(
+          playerImage,
+          this.frameX * cellWidth,
+          0,
+          cellWidth,
+          cellHeight,
+          this.x,
+          this.y,
+          this.width,
+          this.height
       );
-
-      this.candy.draw(this.ctx); // Desenha o pirulito
-      this.player.draw(this.ctx); // Desenha o jogador
-      this.drawScore(); // Desenha a pontuação
-      this.drawTitle(); // Desenha o título
-    }
-
-  // Método para desenhar o título do jogo
-  drawTitle() {
-    this.ctx.font = '30px Powerpuff'; // Define o estilo da fonte
-    this.ctx.fillStyle = 'white'; // Define a cor do texto
-    this.ctx.textAlign = 'center'; // Alinha o texto ao centro
-    this.ctx.fillText('Powerpuff Girls', this.width / 2, 50); // Desenha o título no topo do canvas
   }
 
-// Método para desenhar a pontuação
-drawScore() {
-  this.ctx.font = '30px Powerpuff'; // Define o estilo da fonte
-  this.ctx.fillStyle = 'white'; // Define a cor do texto
-  this.ctx.textAlign = 'right'; // Alinha o texto à direita
-  this.ctx.fillText(`Pontos: ${this.score}`, this.width - 20, this.height - 20); // Desenha a pontuação no canto inferior direito
+  update() {
+      this.handleInput();
+      this.updateAnimation();
+      this.checkCollision();
+      this.keepWithinBounds(); // Garante que o jogador fique dentro dos limites
+  }
+
+  handleInput() {
+      window.addEventListener('keydown', (e) => {
+          this.keys[e.key] = true;
+      });
+
+      window.addEventListener('keyup', (e) => {
+          this.keys[e.key] = false;
+      });
+
+      if (this.keys['ArrowUp']) this.y -= this.speed;
+      if (this.keys['ArrowDown']) this.y += this.speed;
+      if (this.keys['ArrowLeft']) this.x -= this.speed;
+      if (this.keys['ArrowRight']) this.x += this.speed;
+  }
+
+  updateAnimation() {
+    if (this.frameX < totalSpritesX - 1) {
+      this.frameX++;
+    } else {
+      this.frameX = 0;
+    }
+  }
+
+  checkCollision() {
+    // Calcular o centro do jogador
+    const playerCenterX = this.x + this.width / 2;
+    const playerCenterY = this.y + this.height / 2;
+
+    // Calcular a distância entre o centro do jogador e o centro do pirulito
+    const distX = playerCenterX - game.candy.x;
+    const distY = playerCenterY - game.candy.y;
+    const distance = Math.sqrt(distX * distX + distY * distY);
+
+    // Verificar se a distância é menor que a soma dos raios
+    if (distance < this.width / 2 + game.candy.radius) {
+      // Colisão detectada, reposicionar o pirulito e incrementar a pontuação
+      score++;
+      game.candy.randomPosition(game.gameArea);
+    }
+  }
+
+keepWithinBounds() {
+  // Garantir que o jogador permaneça dentro dos limites da área do jogo
+  if (this.x < game.gameArea.x) {
+    this.x = game.gameArea.x;
+  }
+  if (this.x + this.width > game.gameArea.x + game.gameArea.width) {
+    this.x = game.gameArea.x + game.gameArea.width - this.width;
+  }
+  if (this.y < game.gameArea.y) {
+    this.y = game.gameArea.y;
+  }
+  if (this.y + this.height > game.gameArea.y + game.gameArea.height) {
+    this.y = game.gameArea.y + game.gameArea.height - this.height;
+  }
+}
 }
 
-  // Método para verificar colisões entre o jogador e o pirulito
-  checkCollisions() {
-    const dx = this.player.x + this.player.width / 2 - this.candy.x; // Distância no eixo x
-    const dy = this.player.y + this.player.height / 2 - this.candy.y; // Distância no eixo y
-    const distance = Math.hypot(dx, dy); // Distância entre o jogador e o pirulito
+// Classe Candy (Pirulito)
+class Candy {
+  constructor(x, y, radius) {
+      this.x = x;  // Coordenada X do pirulito
+      this.y = y;  // Coordenada Y do pirulito
+      this.radius = radius;  // Raio do pirulito
+  }
 
-    if (distance < this.candy.radius + Math.max(this.player.width, this.player.height) / 2) {
-      this.score++; // Incrementa a pontuação
-      this.candy.randomPosition(this.gameArea); // Move o pirulito para uma nova posição aleatória
-      this.collisionSound.play(); // Toca o som de colisão
+  draw() {
+      CTX.beginPath();  // Inicia um novo caminho de desenho
+      CTX.arc(this.x, this.y, this.radius, 0, Math.PI * 2);  // Desenha um círculo representando o pirulito
+      CTX.fillStyle = 'deeppink';  // Define a cor de preenchimento do pirulito
+      CTX.fill();  // Preenche o círculo
+      CTX.closePath();  // Fecha o caminho de desenho
+  }
+
+  randomPosition(boundary) {
+      // Define uma posição aleatória para o pirulito dentro dos limites fornecidos
+      this.x = boundary.x + Math.random() * (boundary.width - this.radius * 2) + this.radius;
+      this.y = boundary.y + Math.random() * (boundary.height - this.radius * 2) + this.radius;
+  }
+}
+
+// Variáveis globais adicionais
+let enemyImage;
+let totalSpritesIX = 8;  // Número de sprites na horizontal para o inimigo
+let totalSpritesIY = 1;  // Número de sprites na vertical para o inimigo
+let cellWidthI, cellHeightI; // Largura e altura de cada sprite do inimigo
+
+// Classe Enemy (Inimigo)
+class Enemy {
+  constructor(x, y, width, height, speed) {
+    this.x = x; // Posição horizontal inicial
+    this.y = y; // Posição vertical inicial
+    this.width = width; // Largura da sprite do inimigo
+    this.height = height; // Altura da sprite do inimigo
+    this.speed = speed; // Velocidade do inimigo
+    this.frameX = 0;
+    this.directionX = Math.random() > 0.5 ? 1 : -1;
+    this.directionY = Math.random() > 0.5 ? 1 : -1;
+    this.changeDirectionTime = Math.random() * 2000 + 1000; // Tempo aleatório para mudar de direção
+    this.lastDirectionChange = Date.now();
+
+  }
+
+
+
+  draw() {
+    CTX.drawImage(
+        enemyImage, 
+        this.frameX * cellWidthI,
+        0,
+        cellWidthI,
+        cellHeightI,
+        this.x,
+        this.y,
+        this.width,
+        this.height
+    );
+}
+
+update() {
+  // Atualiza a posição do inimigo
+  this.x += this.speed * this.directionX;
+  this.y += this.speed * this.directionY;
+
+  // Verifica se o inimigo saiu dos limites da área do jogo e ajusta a direção
+  if (this.x < game.gameArea.x) {
+      this.x = game.gameArea.x; // Mantém o inimigo dentro da área
+      this.directionX *= -1;
+  }
+  if (this.x + this.width > game.gameArea.x + game.gameArea.width) {
+      this.x = game.gameArea.x + game.gameArea.width - this.width; // Mantém o inimigo dentro da área
+      this.directionX *= -1;
+  }
+  if (this.y < game.gameArea.y) {
+      this.y = game.gameArea.y; // Mantém o inimigo dentro da área
+      this.directionY *= -1;
+  }
+  if (this.y + this.height > game.gameArea.y + game.gameArea.height) {
+      this.y = game.gameArea.y + game.gameArea.height - this.height; // Mantém o inimigo dentro da área
+      this.directionY *= -1;
+  }
+
+
+    // Atualiza a animação e verifica colisão
+    this.checkCollision();
+    this.handleMovement();
+    this.updateAnimation();
+  }
+
+  handleMovement() {
+    const now = Date.now();
+    if (now - this.lastDirectionChange > this.changeDirectionTime) {
+        this.directionX = Math.random() > 0.5 ? 1 : -1;
+        this.directionY = Math.random() > 0.5 ? 1 : -1;
+        this.changeDirectionTime = Math.random() * 2000 + 1000; // Redefine o tempo para mudar de direção
+        this.lastDirectionChange = now;
     }
   }
 
-
-  // Método para garantir que o jogador permaneça dentro da área de jogo
-  handleBounds() {
-    // Impede que o jogador saia da área de jogo pela borda esquerda
-    if (this.player.x < this.gameArea.x) this.player.x = this.gameArea.x;
-
-    // Impede que o jogador saia da área de jogo pela borda direita
-    if (this.player.x + this.player.width > this.gameArea.x + this.gameArea.width)
-      this.player.x = this.gameArea.x + this.gameArea.width - this.player.width;
-
-    // Impede que o jogador saia da área de jogo pela borda superior
-    if (this.player.y < this.gameArea.y) this.player.y = this.gameArea.y;
-
-    // Impede que o jogador saia da área de jogo pela borda inferior
-    if (this.player.y + this.player.height > this.gameArea.y + this.gameArea.height)
-      this.player.y = this.gameArea.y + this.gameArea.height - this.player.height;
+  updateAnimation() {
+    if (this.frameX < totalSpritesIX - 1) {
+        this.frameX++;
+    } else {
+        this.frameX = 0;
+    }
   }
+
+    checkCollision() {
+        if (
+            this.x < game.player.x + game.player.width &&
+            this.x + this.width > game.player.x &&
+            this.y < game.player.y + game.player.height &&
+            this.y + this.height > game.player.y
+        ) {
+            gameOver();
+        }
+    }
+}
+
+// Função gameOver
+const gameOver = () => {
+  gameover = true;
+  if (gameOverSound) {
+    gameOverSound.play();  // Toca o som de game over
+  }
+  if (themeMusic) {
+    themeMusic.pause();  // Pausa a música tema
+  }
+  alert("Game Over!");
+  window.location.reload(); // Reinicia o jogo ao perder
+}
+
+// Função para inicializar o jogo
+const init = async () => {
+  console.log("Initialize Canvas");
+  CANVAS = document.getElementById('gameCanvas');  // Obtém o elemento canvas do HTML
+  CTX = CANVAS.getContext('2d');  // Obtém o contexto de renderização 2D
+
+  // Define a área do jogo
+  game.gameArea = {
+      x: CANVAS.width * 0.1,  // 10% da largura do canvas
+      y: CANVAS.height * 0.1,  // 10% da altura do canvas
+      width: CANVAS.width * 0.8,  // 80% da largura do canvas
+      height: CANVAS.height * 0.8  // 80% da altura do canvas
+  };
+
+  // Carregar imagens e padrões
+  try {
+      playerImage = await loadImage('img/lindinha1.png');  // Carrega a imagem do jogador
+      bgImage = await loadImage('img/fundo.jpg');  // Carrega a imagem de fundo
+      enemyImage = await loadImage('img/ele.png')
+      bgPattern = CTX.createPattern(bgImage, 'repeat');  // Cria um padrão repetido para o fundo
+
+      
+      // Calcula as dimensões dos sprites
+      cellWidth = playerImage.naturalWidth / totalSpritesX;  // Largura do sprite do jogador
+      cellHeight = playerImage.naturalHeight / totalSpritesY;  // Altura do sprite do jogador
+      cellWidthI = enemyImage.naturalWidth / totalSpritesIX;  // Largura do sprite do inimigo
+      cellHeightI = enemyImage.naturalHeight / totalSpritesIY;  // Altura do sprite do inimigo
+        
+
+    // Carregar os áudios
+    themeMusic = await loadAudio('sounds/theme.mp3');  // Carrega a música tema
+    gameOverSound = await loadAudio('sounds/gameover.mp3');  // Carrega o som de game over
+
+      // Inicializa o jogador e o pirulito
+      game.player = new Player(CANVAS.width / 2, CANVAS.height / 2, 70, 70);  // Cria uma nova instância do jogador no centro do canvas
+      game.candy = new Candy(0, 0, 15);  // Cria uma nova instância do pirulito com um raio de 15 pixels
+      game.candy.randomPosition(game.gameArea);  // Define uma posição aleatória para o pirulito dentro da área do jogo
+
+
+      //Inicializa o inimigo
+      game.enemy = new Enemy(CANVAS.width + 100, Math.random() * (CANVAS.height - 50), 100, 100, 10);
+
+          // Toca a música tema em loop
+    if (themeMusic) {
+      themeMusic.loop = true;  // Define para tocar em loop
+      themeMusic.play();  // Inicia a música tema
+    }
+      
+      loop();  // Inicia o loop do jogo
+  } catch (e) {
+      console.error(`Assets Error: ${e.message}`);  // Se ocorrer um erro ao carregar as imagens, ele é registrado no console
+  }
+}
+
+// Função para o loop principal do jogo
+const loop = () => {
+  setTimeout(() => {
+      CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);  // Limpa o canvas
+      CTX.fillStyle = bgPattern;  // Define o padrão de fundo
+      CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);  // Preenche o canvas com o padrão de fundo
+
+      // Desenhar o contorno da área do jogo
+      CTX.strokeStyle = 'white';  // Define a cor do contorno
+      CTX.lineWidth = 2;  // Define a largura da linha
+      CTX.strokeRect(game.gameArea.x, game.gameArea.y, game.gameArea.width, game.gameArea.height);  // Desenha o contorno
+
+      game.player.update();  // Atualiza o estado do jogador
+      game.player.draw();  // Desenha o jogador
+
+      game.candy.draw();  // Desenha o pirulito
+      drawScore();  // Desenha a pontuação
+      drawTitle();  // Desenha o título
+
+      // Atualiza e desenha o inimigo
+      game.enemy.update();
+      game.enemy.draw();
+
+      requestAnimationFrame(loop);  // Chama o loop novamente para o próximo frame
+  }, 1000 / FRAMES);  // Taxa de quadros (FPS)
+}
+
+
+// Função para desenhar a pontuação
+const drawScore = () => {
+  CTX.font = '30px Powerpuff';  // Define a fonte
+  CTX.fillStyle = 'white';  // Define a cor do texto
+  CTX.textAlign = 'right';  // Alinha o texto à direita
+  CTX.textBaseLine = 'top'; //Define o alinhamento vertical do texto
+  CTX.fillText(`Pontos: ${score}`, CANVAS.width - 20, CANVAS.height - 20);  // Desenha a pontuação no canto inferior direito
+}
+
+// Função para desenhar o título
+const drawTitle = () => {
+  CTX.font = '40px Powerpuff';  // Define a fonte
+  CTX.fillStyle = 'deeppink';  // Define a cor do texto
+  CTX.textAlign = 'center';  // Alinha o texto ao centro
+  CTX.fillText('Powerpuff Girls', CANVAS.width / 2, 50);  // Desenha o título no topo do canvas
+}
+
+// Função para carregar um áudio e retornar uma Promise
+const loadAudio = (url) => 
+  new Promise((resolve, reject) => {
+    const audio = new Audio(url);
+    audio.addEventListener('canplaythrough', () => resolve(audio));
+    audio.addEventListener('error', () => reject(new Error(`Falha ao carregar o áudio: ${url}`)));
+  });
+
+// Instância do jogo
+const game = {
+  gameArea: null,  // Área de jogo (definida em `init`)
+  player: null,  // Instância do jogador (definida em `init`)
+  candy: null,  // Instância do pirulito (definida em `init`)
 }
 
 // Configura o jogo quando a página for carregada
-window.addEventListener('load', () => {
-  const canvas = document.getElementById('gameCanvas'); // Obtém o elemento canvas
-  const ctx = canvas.getContext('2d'); // Obtém o contexto de renderização 2D do canvas
-
-  // Definir as dimensões do canvas com base na proporção original
-  const originalWidth = 1690; // Largura original do canvas
-  const originalHeight = 890; // Altura original do canvas
-
-  // Ajustar o tamanho do canvas para preencher a tela mantendo a proporção
-  const aspectRatio = originalWidth / originalHeight; // Calcula a proporção original
-  const windowWidth = window.innerWidth; // Largura da janela
-  const windowHeight = window.innerHeight; // Altura da janela
-
-  // Ajusta as dimensões do canvas para manter a proporção
-  if (windowWidth / windowHeight > aspectRatio) {
-    canvas.width = windowHeight * aspectRatio; // Ajusta a largura com base na altura
-    canvas.height = windowHeight; // Define a altura igual à altura da janela
-  } else {
-    canvas.width = windowWidth; // Define a largura igual à largura da janela
-    canvas.height = windowWidth / aspectRatio; // Ajusta a altura com base na largura
-  }
-
-  // Cria uma instância do jogo e inicia
-  const game = new Game(canvas, ctx);
-  game.init().catch((error) => console.error(error)); // Inicializa o jogo e captura erros
-});
+window.addEventListener('load', init);  // Quando a página é carregada, a função `init` é chamada para iniciar o jogo
