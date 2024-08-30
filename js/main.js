@@ -295,10 +295,10 @@ const init = async () => {
       game.enemy = new Enemy(CANVAS.width + 100, Math.random() * (CANVAS.height - 50), 100, 100, 10);
 
           // Toca a música tema em loop
-  //  if (themeMusic) {
-   //   themeMusic.loop = true;  // Define para tocar em loop
-   //   themeMusic.play();  // Inicia a música tema
-  //  }   
+    if (themeMusic) {
+      themeMusic.loop = true;  // Define para tocar em loop
+      themeMusic.play();  // Inicia a música tema
+    }   
       loop();  // Inicia o loop do jogo
   } catch (e) {
       console.error(`Assets Error: ${e.message}`);  // Se ocorrer um erro ao carregar as imagens, ele é registrado no console
