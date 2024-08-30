@@ -1,145 +1,369 @@
-import '../css/style.css'; // Certifique-se de que o caminho está correto
-
-// Obtém o canvas e o contexto de desenho
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-// Carregar imagens
-const background = new Image();
-background.src = 'img/fundo.jpg';
-
-const lindinha = new Image();
-lindinha.src = 'img/lindinha.png';
-
-// Definição do quadrado central
-const square = {
-    x: canvas.width / 4,
-    y: canvas.height / 4,
-    width: canvas.width / 2,
-    height: canvas.height / 2
-};
-
-// Definição do personagem
-const player = {
-    x: square.x + square.width / 2 - 25, // Centraliza o personagem no quadrado
-    y: square.y + square.height / 2 - 36, // Centraliza o personagem no quadrado
-    width: 60,
-    height: 69,
-    frameX: 0,
-    frameY: 0,
-    speed: 5,
-    moving: false
-};
-
-// Definição do pirulito como círculo rosa
-const candy = {
-    x: 0,
-    y: 0,
-    radius: 15, // Raio do círculo
-};
-
-// Gera uma nova posição aleatória para o pirulito dentro do quadrado central
-function randomPosition() {
-    const x = square.x + Math.random() * (square.width - candy.radius * 2);
-    const y = square.y + Math.random() * (square.height - candy.radius * 2);
-    return { x, y };
-}
-
-// Desenha o pirulito como um círculo rosa
-function drawCandy() {
-    ctx.beginPath();
-    ctx.arc(candy.x + candy.radius, candy.y + candy.radius, candy.radius, 0, Math.PI * 2);
-    ctx.fillStyle = 'pink'; // Cor rosa para o círculo
-    ctx.fill();
-    ctx.closePath();
-}
-
-let score = 0;
-
-// Desenha o personagem
-function drawSprite(img, sX, sY, sW, sH, dX, dY, dW, dH) {
-    ctx.drawImage(img, sX, sY, sW, sH, dX, dY, dW, dH);
-}
-
-// Anima o personagem
-function animatePlayer() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(background, 0, 0, canvas.width, canvas.height); // Ajusta o fundo para cobrir todo o canvas
-    drawText();
-    drawSquare();
-    drawSprite(lindinha, player.frameX * player.width, player.frameY * player.height, player.width, player.height, player.x, player.y, player.width, player.height);
-    drawCandy(); // Desenha o pirulito
-    checkCollision(); // Verifica colisão
-    requestAnimationFrame(animatePlayer);
-}
-
-// Desenha o quadrado central com fundo branco e transparência
-function drawSquare() {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'; // Branco com 70% de opacidade
-    ctx.fillRect(square.x, square.y, square.width, square.height);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; // Borda branca com 70% de opacidade
-    ctx.lineWidth = 4;
-    ctx.strokeRect(square.x, square.y, square.width, square.height);
-}
-
-// Desenha o texto
-function drawText() {
-    ctx.font = '30px Powerpuff';
-    ctx.fillStyle = 'white';
-    ctx.textAlign = 'center';
-    ctx.fillText('Power Puff Girls', canvas.width / 2, 50);
-    ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height - 30);
-}
-
-// Atualiza a função checkCollision para mover o pirulito para uma nova posição aleatória
-function checkCollision() {
-    const dx = player.x + player.width / 2 - (candy.x + candy.radius);
-    const dy = player.y + player.height / 2 - (candy.y + candy.radius);
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance < candy.radius + player.width / 2) {
-        // Colidiu
-        score += 1;
-        // Move o pirulito para uma nova posição aleatória dentro do quadrado central
-        const newPosition = randomPosition();
-        candy.x = newPosition.x;
-        candy.y = newPosition.y;
-    }
-}
-
-// Controle do personagem
-window.addEventListener('keydown', function(e) {
-    player.moving = true;
-    if (e.key === 'ArrowUp' && player.y > square.y) {
-        player.y -= player.speed;
-    }
-    if (e.key === 'ArrowDown' && player.y + player.height < square.y + square.height) {
-        player.y += player.speed;
-    }
-    if (e.key === 'ArrowLeft' && player.x > square.x) {
-        player.x -= player.speed;
-        player.frameX += 1;
-        if (player.frameX > 9)
-            player.frameX = 0;
-    }
-    if (e.key === 'ArrowRight' && player.x + player.width < square.x + square.width) {
-        player.x += player.speed;
-        player.frameX += 1;
-        if (player.frameX > 9)
-            player.frameX = 0;
-    }
+// Função para carregar uma imagem e retornar uma Promise
+const loadImage = async (url) => 
+  new Promise((resolve, reject) => {
+  const img = new Image();
+  img.addEventListener("load", () => resolve(img));  // Quando a imagem é carregada, a promessa é resolvida com a imagem
+  img.addEventListener("error", () => reject(new Error(`Falha ao carregar a imagem: ${url}`)));  // Se ocorrer um erro ao carregar a imagem, a promessa é rejeitada
+  img.src = url;  // Define o caminho da imagem
+  console.log('loading img: ' + url);  // Log para saber qual imagem está sendo carregada
 });
 
-window.addEventListener('keyup', function(e) {
-    player.moving = false;
-});
+// Variáveis globais
+let CTX, CANVAS;  // Variáveis que armazenarão o contexto e o canvas
+const FRAMES = 30;  // Taxa de quadros por segundo (FPS) do jogo
+let playerImage, bgImage, bgPattern, candyImage, enemyImage;  // Variáveis para armazenar as imagens e o padrão de fundo
+let totalSpritesX = 9;  // Número de sprites na horizontal (usado para animação)
+let totalSpritesY = 1;  // Número de sprites na vertical (usado para animação)
+let cellWidth, cellHeight;  // Largura e altura de cada sprite na imagem
+let cellHeightC, cellWidthC; // Largura e altura de cada sprite do candy
+let totalSpritesCX = 1;
+let totalSpritesCY = 1;
+let score = 0;  // Pontuação inicial do jogador
+let gameover = false;  // Estado do jogo (se está em game over ou não)
+let gameOverSound;
+let themeMusic;
+let totalSpritesIX = 8;  // Número de sprites na horizontal para o inimigo
+let totalSpritesIY = 1;  // Número de sprites na vertical para o inimigo
+let cellWidthI, cellHeightI; // Largura e altura de cada sprite do inimigo
 
-// Iniciar animação após o carregamento da imagem de fundo
-background.onload = function() {
-    // Inicializa a posição do pirulito para garantir que esteja dentro dos limites do quadrado central
-    const initialPosition = randomPosition();
-    candy.x = initialPosition.x;
-    candy.y = initialPosition.y;
-    
-    animatePlayer();
-};
+// Classe Player
+
+class Player {
+  constructor(x, y, width, height) {
+      this.x = x;
+      this.y = y;
+      this.width = width;
+      this.height = height;
+      this.speed = 10;
+      this.frameX = 0;
+      this.keys = {};
+  }
+
+  draw() {
+      CTX.drawImage(
+          playerImage,
+          this.frameX * cellWidth,
+          0,
+          cellWidth,
+          cellHeight,
+          this.x,
+          this.y,
+          this.width,
+          this.height
+      );
+  }
+
+  update() {
+      this.handleInput();
+      this.updateAnimation();
+      this.checkCollision();
+      this.keepWithinBounds(); // Garante que o jogador fique dentro dos limites
+  }
+
+  handleInput() {
+      window.addEventListener('keydown', (e) => {
+          this.keys[e.key] = true;
+      });
+
+      window.addEventListener('keyup', (e) => {
+          this.keys[e.key] = false;
+      });
+
+      if (this.keys['ArrowUp']) this.y -= this.speed;
+      if (this.keys['ArrowDown']) this.y += this.speed;
+      if (this.keys['ArrowLeft']) this.x -= this.speed;
+      if (this.keys['ArrowRight']) this.x += this.speed;
+  }
+
+  updateAnimation() {
+    if (this.frameX < totalSpritesX - 1) {
+      this.frameX++;
+    } else {
+      this.frameX = 0;
+    }
+  }
+
+  checkCollision() {
+    // Calcular o centro do jogador
+    const playerCenterX = this.x + this.width / 2;
+    const playerCenterY = this.y + this.height / 2;
+
+    // Calcular a distância entre o centro do jogador e o centro do pirulito
+    const distX = playerCenterX - game.candy.x;
+    const distY = playerCenterY - game.candy.y;
+    const distance = Math.sqrt(distX * distX + distY * distY);
+
+    // Verificar se a distância é menor que a soma dos raios
+    if (distance < this.width / 2 + game.candy.radius) {
+      // Colisão detectada, reposicionar o doce e incrementar a pontuação
+      score++;
+      game.candy.randomPosition(game.gameArea);
+    }
+  }
+
+keepWithinBounds() {
+  // Garantir que o jogador permaneça dentro dos limites da área do jogo
+  if (this.x < game.gameArea.x) {
+    this.x = game.gameArea.x;
+  }
+  if (this.x + this.width > game.gameArea.x + game.gameArea.width) {
+    this.x = game.gameArea.x + game.gameArea.width - this.width;
+  }
+  if (this.y < game.gameArea.y) {
+    this.y = game.gameArea.y;
+  }
+  if (this.y + this.height > game.gameArea.y + game.gameArea.height) {
+    this.y = game.gameArea.y + game.gameArea.height - this.height;
+  }
+}
+}
+
+// Classe Candy 
+class Candy {
+  constructor(x, y, height, width) {
+      this.x = x;  // Coordenada X do doce
+      this.y = y;  // Coordenada Y do doce
+      this.width = width;
+      this.height = height;
+      
+  }
+
+  draw() {
+    CTX.drawImage(
+        candyImage, 
+        this.frameX * cellWidthC,
+        2,
+        cellWidthC,
+        cellHeightC,
+        this.x,
+        this.y,
+        this.width,
+        this.height
+    );
+}
+
+  randomPosition(boundary) {
+      // Define uma posição aleatória para o pirulito dentro dos limites fornecidos
+      this.x = boundary.x + Math.random() * (boundary.width - this.radius * 2) + this.radius;
+      this.y = boundary.y + Math.random() * (boundary.height - this.radius * 2) + this.radius;
+  }
+}
+
+// Classe Enemy (Inimigo)
+class Enemy {
+  constructor(x, y, width, height, speed) {
+    this.x = x; // Posição horizontal inicial
+    this.y = y; // Posição vertical inicial
+    this.width = width; // Largura da sprite do inimigo
+    this.height = height; // Altura da sprite do inimigo
+    this.speed = speed; // Velocidade do inimigo
+    this.frameX = 0;
+    this.directionX = Math.random() > 0.5 ? 1 : -1;
+    this.directionY = Math.random() > 0.5 ? 1 : -1;
+    this.changeDirectionTime = Math.random() * 2000 + 1000; // Tempo aleatório para mudar de direção
+    this.lastDirectionChange = Date.now();
+
+  }
+
+  draw() {
+    CTX.drawImage(
+        enemyImage, 
+        this.frameX * cellWidthI,
+        0,
+        cellWidthI,
+        cellHeightI,
+        this.x,
+        this.y,
+        this.width,
+        this.height
+    );
+}
+
+update() {
+  // Atualiza a posição do inimigo
+  this.x += this.speed * this.directionX;
+  this.y += this.speed * this.directionY;
+
+  // Verifica se o inimigo saiu dos limites da área do jogo e ajusta a direção
+  if (this.x < game.gameArea.x) {
+      this.x = game.gameArea.x; // Mantém o inimigo dentro da área
+      this.directionX *= -1;
+  }
+  if (this.x + this.width > game.gameArea.x + game.gameArea.width) {
+      this.x = game.gameArea.x + game.gameArea.width - this.width; // Mantém o inimigo dentro da área
+      this.directionX *= -1;
+  }
+  if (this.y < game.gameArea.y) {
+      this.y = game.gameArea.y; // Mantém o inimigo dentro da área
+      this.directionY *= -1;
+  }
+  if (this.y + this.height > game.gameArea.y + game.gameArea.height) {
+      this.y = game.gameArea.y + game.gameArea.height - this.height; // Mantém o inimigo dentro da área
+      this.directionY *= -1;
+  }
+
+
+    // Atualiza a animação e verifica colisão
+    this.checkCollision();
+    this.handleMovement();
+    this.updateAnimation();
+  }
+
+  handleMovement() {
+    const now = Date.now();
+    if (now - this.lastDirectionChange > this.changeDirectionTime) {
+        this.directionX = Math.random() > 0.5 ? 1 : -1;
+        this.directionY = Math.random() > 0.5 ? 1 : -1;
+        this.changeDirectionTime = Math.random() * 2000 + 1000; // Redefine o tempo para mudar de direção
+        this.lastDirectionChange = now;
+    }
+  }
+
+  updateAnimation() {
+    if (this.frameX < totalSpritesIX - 1) {
+        this.frameX++;
+    } else {
+        this.frameX = 0;
+    }
+  }
+
+    checkCollision() {
+        if (
+            this.x < game.player.x + game.player.width &&
+            this.x + this.width > game.player.x &&
+            this.y < game.player.y + game.player.height &&
+            this.y + this.height > game.player.y
+        ) {
+            gameOver();
+        }
+    }
+}
+
+// Função gameOver
+const gameOver = () => {
+  gameover = true;
+  if (gameOverSound) {
+    gameOverSound.play();  // Toca o som de game over
+  }
+  if (themeMusic) {
+    themeMusic.pause();  // Pausa a música tema
+  }
+  alert("Game Over!");
+  window.location.reload(); // Reinicia o jogo ao perder
+}
+
+// Função para inicializar o jogo
+const init = async () => {
+  console.log("Initialize Canvas");
+  CANVAS = document.getElementById('gameCanvas');  // Obtém o elemento canvas do HTML
+  CTX = CANVAS.getContext('2d');  // Obtém o contexto de renderização 2D
+
+  // Define a área do jogo
+  game.gameArea = {
+      x: CANVAS.width * 0.1,  // 10% da largura do canvas
+      y: CANVAS.height * 0.1,  // 10% da altura do canvas
+      width: CANVAS.width * 0.8,  // 80% da largura do canvas
+      height: CANVAS.height * 0.8  // 80% da altura do canvas
+  };
+
+  // Carregar imagens e padrões
+  try {
+      playerImage = await loadImage('img/lindinha1.png');  // Carrega a imagem do jogador
+      bgImage = await loadImage('img/fundo.jpg');  // Carrega a imagem de fundo
+      enemyImage = await loadImage('img/ele.png'); // Carrega a imagem do inimigo
+      candyImage = await loadImage('img/doces.png'); // Carrega a imagem do doce
+      bgPattern = CTX.createPattern(bgImage, 'repeat');  // Cria um padrão repetido para o fundo
+
+      
+      // Calcula as dimensões dos sprites
+      cellWidth = playerImage.naturalWidth / totalSpritesX;  // Largura do sprite do jogador
+      cellHeight = playerImage.naturalHeight / totalSpritesY;  // Altura do sprite do jogador
+      cellWidthI = enemyImage.naturalWidth / totalSpritesIX;  // Largura do sprite do inimigo
+      cellHeightI = enemyImage.naturalHeight / totalSpritesIY;  // Altura do sprite do inimigo
+      cellHeightC = candyImage.naturalHeight / totalSpritesCY;
+      cellWidthC = candyImage.naturalWidth / totalSpritesCX;
+        
+
+    // Carregar os áudios
+    themeMusic = await loadAudio('sounds/theme.mp3');  // Carrega a música tema
+    gameOverSound = await loadAudio('sounds/gameover.mp3');  // Carrega o som de game over
+
+      // Inicializa o jogador, o doce e o inimigo
+      game.player = new Player(CANVAS.width / 2, CANVAS.height / 2, 70, 70);  // Cria uma nova instância do jogador no centro do canvas
+      game.candy = new Candy(10, 10, 15);  // Cria uma nova instância do pirulito com um raio de 15 pixels
+      game.candy.randomPosition(game.gameArea);  // Define uma posição aleatória para o pirulito dentro da área do jogo
+      game.enemy = new Enemy(CANVAS.width + 100, Math.random() * (CANVAS.height - 50), 100, 100, 10);
+
+          // Toca a música tema em loop
+  //  if (themeMusic) {
+   //   themeMusic.loop = true;  // Define para tocar em loop
+   //   themeMusic.play();  // Inicia a música tema
+  //  }   
+      loop();  // Inicia o loop do jogo
+  } catch (e) {
+      console.error(`Assets Error: ${e.message}`);  // Se ocorrer um erro ao carregar as imagens, ele é registrado no console
+  }
+}
+
+// Função para o loop principal do jogo
+const loop = () => {
+  setTimeout(() => {
+      CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);  // Limpa o canvas
+      CTX.fillStyle = bgPattern;  // Define o padrão de fundo
+      CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);  // Preenche o canvas com o padrão de fundo
+
+      // Desenhar o contorno da área do jogo
+      CTX.strokeStyle = 'white';  // Define a cor do contorno
+      CTX.lineWidth = 2;  // Define a largura da linha
+      CTX.strokeRect(game.gameArea.x, game.gameArea.y, game.gameArea.width, game.gameArea.height);  // Desenha o contorno
+
+      game.player.update();  // Atualiza o estado do jogador
+      game.player.draw();  // Desenha o jogador
+
+      game.candy.draw();  // Desenha o pirulito
+      drawScore();  // Desenha a pontuação
+      drawTitle();  // Desenha o título
+
+      // Atualiza e desenha o inimigo
+      game.enemy.update();
+      game.enemy.draw();
+
+      requestAnimationFrame(loop);  // Chama o loop novamente para o próximo frame
+  }, 1000 / FRAMES);  // Taxa de quadros (FPS)
+}
+
+
+// Função para desenhar a pontuação
+const drawScore = () => {
+  CTX.font = '30px Powerpuff';  // Define a fonte
+  CTX.fillStyle = 'white';  // Define a cor do texto
+  CTX.textAlign = 'right';  // Alinha o texto à direita
+  CTX.textBaseLine = 'top'; //Define o alinhamento vertical do texto
+  CTX.fillText(`Pontos: ${score}`, CANVAS.width - 20, CANVAS.height - 20);  // Desenha a pontuação no canto inferior direito
+}
+
+// Função para desenhar o título
+const drawTitle = () => {
+  CTX.font = '40px Powerpuff';  // Define a fonte
+  CTX.fillStyle = 'deeppink';  // Define a cor do texto
+  CTX.textAlign = 'center';  // Alinha o texto ao centro
+  CTX.fillText('Powerpuff Girls', CANVAS.width / 2, 50);  // Desenha o título no topo do canvas
+}
+
+// Função para carregar um áudio e retornar uma Promise
+const loadAudio = (url) => 
+  new Promise((resolve, reject) => {
+    const audio = new Audio(url);
+    audio.addEventListener('canplaythrough', () => resolve(audio));
+    audio.addEventListener('error', () => reject(new Error(`Falha ao carregar o áudio: ${url}`)));
+  });
+
+// Instância do jogo
+const game = {
+  gameArea: null,  // Área de jogo (definida em `init`)
+  player: null,  // Instância do jogador (definida em `init`)
+  candy: null,  // Instância do doce (definida em `init`)
+}
+
+// Configura o jogo quando a página for carregada
+window.addEventListener('load', init);  // Quando a página é carregada, a função `init` é chamada para iniciar o jogo
