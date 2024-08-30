@@ -11,14 +11,21 @@ const loadImage = async (url) =>
 // Variáveis globais
 let CTX, CANVAS;  // Variáveis que armazenarão o contexto e o canvas
 const FRAMES = 30;  // Taxa de quadros por segundo (FPS) do jogo
-let playerImage, bgImage, bgPattern;  // Variáveis para armazenar as imagens e o padrão de fundo
+let playerImage, bgImage, bgPattern, candyImage;  // Variáveis para armazenar as imagens e o padrão de fundo
 let totalSpritesX = 9;  // Número de sprites na horizontal (usado para animação)
 let totalSpritesY = 1;  // Número de sprites na vertical (usado para animação)
 let cellWidth, cellHeight;  // Largura e altura de cada sprite na imagem
+let cellHeightC, cellWidthC;
 let score = 0;  // Pontuação inicial do jogador
 let gameover = false;  // Estado do jogo (se está em game over ou não)
 let gameOverSound;
 let themeMusic;
+let enemyImage;
+let totalSpritesIX = 8;  // Número de sprites na horizontal para o inimigo
+let totalSpritesIY = 1;  // Número de sprites na vertical para o inimigo
+let totalSpritesCX = 1;
+let totalSpritesCY = 1;
+let cellWidthI, cellHeightI; // Largura e altura de cada sprite do inimigo
 
 // Classe Player
 
@@ -112,21 +119,29 @@ keepWithinBounds() {
 }
 }
 
-// Classe Candy (Pirulito)
+// Classe Candy 
 class Candy {
-  constructor(x, y, radius) {
-      this.x = x;  // Coordenada X do pirulito
-      this.y = y;  // Coordenada Y do pirulito
-      this.radius = radius;  // Raio do pirulito
+  constructor(x, y, height, width) {
+      this.x = x;  // Coordenada X do doce
+      this.y = y;  // Coordenada Y do doce
+      this.width = width;
+      this.height = height;
+      
   }
 
   draw() {
-      CTX.beginPath();  // Inicia um novo caminho de desenho
-      CTX.arc(this.x, this.y, this.radius, 0, Math.PI * 2);  // Desenha um círculo representando o pirulito
-      CTX.fillStyle = 'deeppink';  // Define a cor de preenchimento do pirulito
-      CTX.fill();  // Preenche o círculo
-      CTX.closePath();  // Fecha o caminho de desenho
-  }
+    CTX.drawImage(
+        candyImage, 
+        this.frameX * cellWidthC,
+        0,
+        cellWidthC,
+        cellHeightC,
+        this.x,
+        this.y,
+        this.width,
+        this.height
+    );
+}
 
   randomPosition(boundary) {
       // Define uma posição aleatória para o pirulito dentro dos limites fornecidos
@@ -134,12 +149,6 @@ class Candy {
       this.y = boundary.y + Math.random() * (boundary.height - this.radius * 2) + this.radius;
   }
 }
-
-// Variáveis globais adicionais
-let enemyImage;
-let totalSpritesIX = 8;  // Número de sprites na horizontal para o inimigo
-let totalSpritesIY = 1;  // Número de sprites na vertical para o inimigo
-let cellWidthI, cellHeightI; // Largura e altura de cada sprite do inimigo
 
 // Classe Enemy (Inimigo)
 class Enemy {
@@ -264,7 +273,8 @@ const init = async () => {
   try {
       playerImage = await loadImage('img/lindinha1.png');  // Carrega a imagem do jogador
       bgImage = await loadImage('img/fundo.jpg');  // Carrega a imagem de fundo
-      enemyImage = await loadImage('img/ele.png')
+      enemyImage = await loadImage('img/ele.png'); // Carrega a imagem do inimigo
+      candyImage = await loadImage('img/doces.png'); // Carrega a imagem do doce
       bgPattern = CTX.createPattern(bgImage, 'repeat');  // Cria um padrão repetido para o fundo
 
       
@@ -273,6 +283,8 @@ const init = async () => {
       cellHeight = playerImage.naturalHeight / totalSpritesY;  // Altura do sprite do jogador
       cellWidthI = enemyImage.naturalWidth / totalSpritesIX;  // Largura do sprite do inimigo
       cellHeightI = enemyImage.naturalHeight / totalSpritesIY;  // Altura do sprite do inimigo
+      cellHeightC = candyImage.naturalHeight / totalSpritesCY;
+      cellWidthC = candyImage.naturalWidth / totalSpritesCX;
         
 
     // Carregar os áudios
