@@ -11,20 +11,19 @@ const loadImage = async (url) =>
 // Variáveis globais
 let CTX, CANVAS;  // Variáveis que armazenarão o contexto e o canvas
 const FRAMES = 30;  // Taxa de quadros por segundo (FPS) do jogo
-let playerImage, bgImage, bgPattern, candyImage;  // Variáveis para armazenar as imagens e o padrão de fundo
+let playerImage, bgImage, bgPattern, candyImage, enemyImage;  // Variáveis para armazenar as imagens e o padrão de fundo
 let totalSpritesX = 9;  // Número de sprites na horizontal (usado para animação)
 let totalSpritesY = 1;  // Número de sprites na vertical (usado para animação)
 let cellWidth, cellHeight;  // Largura e altura de cada sprite na imagem
-let cellHeightC, cellWidthC;
+let cellHeightC, cellWidthC; // Largura e altura de cada sprite do candy
+let totalSpritesCX = 1;
+let totalSpritesCY = 1;
 let score = 0;  // Pontuação inicial do jogador
 let gameover = false;  // Estado do jogo (se está em game over ou não)
 let gameOverSound;
 let themeMusic;
-let enemyImage;
 let totalSpritesIX = 8;  // Número de sprites na horizontal para o inimigo
 let totalSpritesIY = 1;  // Número de sprites na vertical para o inimigo
-let totalSpritesCX = 1;
-let totalSpritesCY = 1;
 let cellWidthI, cellHeightI; // Largura e altura de cada sprite do inimigo
 
 // Classe Player
@@ -96,7 +95,7 @@ class Player {
 
     // Verificar se a distância é menor que a soma dos raios
     if (distance < this.width / 2 + game.candy.radius) {
-      // Colisão detectada, reposicionar o pirulito e incrementar a pontuação
+      // Colisão detectada, reposicionar o doce e incrementar a pontuação
       score++;
       game.candy.randomPosition(game.gameArea);
     }
@@ -133,7 +132,7 @@ class Candy {
     CTX.drawImage(
         candyImage, 
         this.frameX * cellWidthC,
-        0,
+        2,
         cellWidthC,
         cellHeightC,
         this.x,
@@ -165,8 +164,6 @@ class Enemy {
     this.lastDirectionChange = Date.now();
 
   }
-
-
 
   draw() {
     CTX.drawImage(
@@ -291,21 +288,17 @@ const init = async () => {
     themeMusic = await loadAudio('sounds/theme.mp3');  // Carrega a música tema
     gameOverSound = await loadAudio('sounds/gameover.mp3');  // Carrega o som de game over
 
-      // Inicializa o jogador e o pirulito
+      // Inicializa o jogador, o doce e o inimigo
       game.player = new Player(CANVAS.width / 2, CANVAS.height / 2, 70, 70);  // Cria uma nova instância do jogador no centro do canvas
-      game.candy = new Candy(0, 0, 15);  // Cria uma nova instância do pirulito com um raio de 15 pixels
+      game.candy = new Candy(10, 10, 15);  // Cria uma nova instância do pirulito com um raio de 15 pixels
       game.candy.randomPosition(game.gameArea);  // Define uma posição aleatória para o pirulito dentro da área do jogo
-
-
-      //Inicializa o inimigo
       game.enemy = new Enemy(CANVAS.width + 100, Math.random() * (CANVAS.height - 50), 100, 100, 10);
 
           // Toca a música tema em loop
-    if (themeMusic) {
-      themeMusic.loop = true;  // Define para tocar em loop
-      themeMusic.play();  // Inicia a música tema
-    }
-      
+  //  if (themeMusic) {
+   //   themeMusic.loop = true;  // Define para tocar em loop
+   //   themeMusic.play();  // Inicia a música tema
+  //  }   
       loop();  // Inicia o loop do jogo
   } catch (e) {
       console.error(`Assets Error: ${e.message}`);  // Se ocorrer um erro ao carregar as imagens, ele é registrado no console
@@ -369,7 +362,7 @@ const loadAudio = (url) =>
 const game = {
   gameArea: null,  // Área de jogo (definida em `init`)
   player: null,  // Instância do jogador (definida em `init`)
-  candy: null,  // Instância do pirulito (definida em `init`)
+  candy: null,  // Instância do doce (definida em `init`)
 }
 
 // Configura o jogo quando a página for carregada
