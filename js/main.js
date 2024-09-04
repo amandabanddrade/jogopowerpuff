@@ -94,7 +94,7 @@ class Player {
     const distance = Math.sqrt(distX * distX + distY * distY);
 
     // Verificar se a distância é menor que a soma dos raios
-    if (distance < this.width / 2 + game.candy.radius) {
+    if (distance < this.width / 2) {
       // Colisão detectada, reposicionar o doce e incrementar a pontuação
       score++;
       game.candy.randomPosition(game.gameArea);
@@ -125,7 +125,7 @@ class Candy {
       this.y = y;  // Coordenada Y do doce
       this.width = width;
       this.height = height;
-      
+      this.frameX = 0;
   }
 
   draw() {
@@ -144,8 +144,8 @@ class Candy {
 
   randomPosition(boundary) {
       // Define uma posição aleatória para o pirulito dentro dos limites fornecidos
-      this.x = boundary.x + Math.random() * (boundary.width - this.radius * 2) + this.radius;
-      this.y = boundary.y + Math.random() * (boundary.height - this.radius * 2) + this.radius;
+      this.x = boundary.x + Math.random() * (boundary.width - this.width);
+      this.y = boundary.y + Math.random() * (boundary.height - this.height);
   }
 }
 
@@ -290,7 +290,7 @@ const init = async () => {
 
       // Inicializa o jogador, o doce e o inimigo
       game.player = new Player(CANVAS.width / 2, CANVAS.height / 2, 70, 70);  // Cria uma nova instância do jogador no centro do canvas
-      game.candy = new Candy(10, 10, 15);  // Cria uma nova instância do pirulito com um raio de 15 pixels
+      game.candy = new Candy(10, 10, cellWidthC / 10, cellHeightC / 10);  // Cria uma nova instância do pirulito com um raio de 15 pixels
       game.candy.randomPosition(game.gameArea);  // Define uma posição aleatória para o pirulito dentro da área do jogo
       game.enemy = new Enemy(CANVAS.width + 100, Math.random() * (CANVAS.height - 50), 100, 100, 10);
 
@@ -308,30 +308,48 @@ const init = async () => {
 // Função para o loop principal do jogo
 const loop = () => {
   setTimeout(() => {
-      CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);  // Limpa o canvas
-      CTX.fillStyle = bgPattern;  // Define o padrão de fundo
-      CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);  // Preenche o canvas com o padrão de fundo
+    CTX.clearRect(0, 0, CANVAS.width, CANVAS.height); // Limpa o canvas
+    CTX.fillStyle = bgPattern; // Define o padrão de fundo
+    CTX.fillRect(0, 0, CANVAS.width, CANVAS.height); // Preenche o canvas com o padrão de fundo
 
-      // Desenhar o contorno da área do jogo
-      CTX.strokeStyle = 'white';  // Define a cor do contorno
-      CTX.lineWidth = 2;  // Define a largura da linha
-      CTX.strokeRect(game.gameArea.x, game.gameArea.y, game.gameArea.width, game.gameArea.height);  // Desenha o contorno
+    if (!gameStarted) {
+      drawStartMessage(); // Desenha a mensagem de início se o jogo não começou
+      return;
+    }
 
-      game.player.update();  // Atualiza o estado do jogador
-      game.player.draw();  // Desenha o jogador
+    // Desenhar o contorno da área do jogo
+    CTX.strokeStyle = 'white'; // Define a cor do contorno
+    CTX.lineWidth = 2; // Define a largura da linha
+    CTX.strokeRect(game.gameArea.x, game.gameArea.y, game.gameArea.width, game.gameArea.height); // Desenha o contorno
 
-      game.candy.draw();  // Desenha o pirulito
-      drawScore();  // Desenha a pontuação
-      drawTitle();  // Desenha o título
+    game.player.update(); // Atualiza o estado do jogador
+    game.player.draw(); // Desenha o jogador
+    game.candy.draw(); // Desenha o pirulito
+    drawScore(); // Desenha a pontuação
+    drawTitle(); // Desenha o título
+    game.enemy.update(); // Atualiza e desenha o inimigo
+    game.enemy.draw();
 
-      // Atualiza e desenha o inimigo
-      game.enemy.update();
-      game.enemy.draw();
+    requestAnimationFrame(loop); // Chama o loop novamente para o próximo frame
+  }, 1000 / FRAMES); // Taxa de quadros (FPS)
+};
 
-      requestAnimationFrame(loop);  // Chama o loop novamente para o próximo frame
-  }, 1000 / FRAMES);  // Taxa de quadros (FPS)
-}
+let gameStarted = false;
 
+//Função para desenhar mensagem de inicio
+const drawStartMessage = () => {
+  CTX.font = '40px Powerpuff'; // Define a fonte
+  CTX.fillStyle = 'deeppink'; // Define a cor do texto
+  CTX.textAlign = 'center'; // Alinha o texto ao centro
+  CTX.fillText('Pressione qualquer tecla para começar', CANVAS.width / 2, CANVAS.height / 2); // Mensagem centralizada
+}; 
+
+// Função para iniciar o jogo
+const startGame = () => {
+  gameStarted = true;
+  loop(); // Inicia o loop do jogo
+  window.removeEventListener('keydown', startGame); // Remove o listener após o jogo começar
+};
 
 // Função para desenhar a pontuação
 const drawScore = () => {
@@ -366,4 +384,7 @@ const game = {
 }
 
 // Configura o jogo quando a página for carregada
-window.addEventListener('load', init);  // Quando a página é carregada, a função `init` é chamada para iniciar o jogo
+window.addEventListener('load', () => {
+  init(); // Inicializa o jogo
+  window.addEventListener('keydown', startGame); // Adiciona um listener para começar o jogo quando uma tecla for pressionada
+});
