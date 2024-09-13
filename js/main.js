@@ -12,68 +12,68 @@ const loadImage = async (url) =>
 let CTX, CANVAS;  // Variáveis que armazenarão o contexto e o canvas
 const FRAMES = 30;  // Taxa de quadros por segundo (FPS) do jogo
 let playerImage, bgImage, bgPattern, candyImage, enemyImage;  // Variáveis para armazenar as imagens e o padrão de fundo
-let totalSpritesX = 9;  // Número de sprites na horizontal (usado para animação)
-let totalSpritesY = 1;  // Número de sprites na vertical (usado para animação)
 let cellWidth, cellHeight;  // Largura e altura de cada sprite na imagem
-let cellHeightC, cellWidthC; // Largura e altura de cada sprite do candy
+let cellHeightC, cellWidthC;
+let cellWidthI, cellHeightI; 
 let totalSpritesCX = 1;
 let totalSpritesCY = 1;
+let totalSpritesIX = 8;  // Número de sprites na horizontal para o inimigo
+let totalSpritesIY = 1;  // Número de sprites na vertical para o inimigo
+let totalSpritesX = 9;  
+let totalSpritesY = 1;  
 let score = 0;  // Pontuação inicial do jogador
 let gameover = false;  // Estado do jogo (se está em game over ou não)
 let gameOverSound;
 let themeMusic;
-let totalSpritesIX = 8;  // Número de sprites na horizontal para o inimigo
-let totalSpritesIY = 1;  // Número de sprites na vertical para o inimigo
-let cellWidthI, cellHeightI; // Largura e altura de cada sprite do inimigo
 
 // Classe Player
 
 class Player {
   constructor(x, y, width, height) {
-      this.x = x;
-      this.y = y;
-      this.width = width;
-      this.height = height;
-      this.speed = 10;
-      this.frameX = 0;
-      this.keys = {};
+      this.x = x; //Define a posição horizontal
+      this.y = y; //Define a posição vertical
+      this.width = width; //Define a altura
+      this.height = height; // Define a largura
+      this.speed = 10; // Velocidade
+      this.frameX = 0; // Inicializa a posição do sprite da lindinha
+      this.keys = {}; // armazena o estado das teclas pressionadas
   }
 
   draw() {
       CTX.drawImage(
-          playerImage,
+          playerImage, // a imagem da lindinha vai ser desenhada
           this.frameX * cellWidth,
           0,
-          cellWidth,
-          cellHeight,
+          cellWidth, // largura do recorte do sprite
+          cellHeight, // altura do recorte do sprite
           this.x,
           this.y,
-          this.width,
+          this.width, // largura do sprite desenhado no canvas
           this.height
       );
   }
 
   update() {
-      this.handleInput();
-      this.updateAnimation();
-      this.checkCollision();
+      this.handleInput(); // Atualiza o estado da lindinha com base na entrada do usuário (movimento das teclas)
+      this.updateAnimation();  // Atualiza a animação da lindinha (altera o quadro atual da animação)
+      this.checkCollision(); // verifica a colisão
       this.keepWithinBounds(); // Garante que o jogador fique dentro dos limites
   }
 
   handleInput() {
       window.addEventListener('keydown', (e) => {
           this.keys[e.key] = true;
-      });
+      }); // marca a tecla como true no objeto keys, ou sej a tecla esta sendo pressionada
 
       window.addEventListener('keyup', (e) => {
           this.keys[e.key] = false;
-      });
+      }); // aqui é quando a tecla parou de ser pressionada
 
       if (this.keys['ArrowUp']) this.y -= this.speed;
       if (this.keys['ArrowDown']) this.y += this.speed;
       if (this.keys['ArrowLeft']) this.x -= this.speed;
       if (this.keys['ArrowRight']) this.x += this.speed;
-  }
+  } // verifica qual das setas esta sendo apertada
 
   updateAnimation() {
     if (this.frameX < totalSpritesX - 1) {
@@ -81,7 +81,7 @@ class Player {
     } else {
       this.frameX = 0;
     }
-  }
+  } // função para o sprite se mexer
 
   checkCollision() {
     // Calcular o centro do jogador
@@ -319,7 +319,7 @@ const loop = () => {
 
     // Desenhar o contorno da área do jogo
     CTX.strokeStyle = 'white'; // Define a cor do contorno
-    CTX.lineWidth = 2; // Define a largura da linha
+    CTX.lineWidth = 5; // Define a largura da linha
     CTX.strokeRect(game.gameArea.x, game.gameArea.y, game.gameArea.width, game.gameArea.height); // Desenha o contorno
 
     game.player.update(); // Atualiza o estado do jogador
@@ -341,7 +341,7 @@ const drawStartMessage = () => {
   CTX.font = '40px Powerpuff'; // Define a fonte
   CTX.fillStyle = 'deeppink'; // Define a cor do texto
   CTX.textAlign = 'center'; // Alinha o texto ao centro
-  CTX.fillText('Pressione qualquer tecla para começar', CANVAS.width / 2, CANVAS.height / 2); // Mensagem centralizada
+  CTX.fillText('Pressione qualquer tecla para iniciar', CANVAS.width / 2, CANVAS.height / 2); // Mensagem centralizada
 }; 
 
 // Função para iniciar o jogo
